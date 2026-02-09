@@ -1,0 +1,4 @@
+#Ignore files generated at runtime
+*.dot
+*.png
+*.svg
