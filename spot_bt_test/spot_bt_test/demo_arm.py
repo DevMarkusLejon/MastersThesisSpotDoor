@@ -76,11 +76,12 @@ def create_root() -> Sequence:
             create_lease_claim_selector(),
             create_power_on_selector(),
             create_standing_selector(),
-	    #create_arm_motion_behavior(),
+	        
+            #create_arm_motion_behavior(),
 
- 	    create_test_behavior(),
+ 	        #create_test_behavior(),
 
-	    create_sitting_selector(),
+	        create_sitting_selector(),
             create_power_off_selector(),
             create_lease_release_selector(),
         ]
