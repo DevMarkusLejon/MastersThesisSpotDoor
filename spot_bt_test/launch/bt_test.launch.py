@@ -7,10 +7,31 @@ from launch import LaunchContext
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
+from launch.actions import OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
 from launch_ros.actions import Node
+
+def get_demo_type_node(context: LaunchContext) -> list[Node]:
+    """Get demo type from launch configuration"""
+    demo_type = LaunchConfiguration("demo_type").perform(context)
+    if demo_type.lower() not in [
+        "arm",
+        "graphnav",
+        "standwalksit",
+    ]:
+        raise ValueError(
+            "The only demo_types supported are: arm, graphnav, standwalksit"
+        )
+
+    return [
+        Node(
+            package="spot_bt_ros_py",
+            executable=f"spot_{demo_type}_demo",
+            output="screen",
+        )
+    ]
 
 
 def generate_launch_description():
@@ -69,10 +90,11 @@ def generate_launch_description():
             spot_driver_launch,
             spot_controller_launch,
             spot_planner_launch,
-            Node(
+            OpaqueFunction(function=get_demo_type_node),
+            """Node(
                 package="spot_bt_test",
                 executable="spot_arm_demo",
                 output="screen",
-            ),
+            ),"""
         ]
     )

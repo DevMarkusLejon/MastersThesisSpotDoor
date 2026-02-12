@@ -23,8 +23,9 @@ setup(
     tests_require=["pytest"],
     entry_points={
         'console_scripts': [
-		'stand_walk_sit_bt = spot_bt_test.stand_walk_sit_bt:main',
+		'spot_standwalksit_demo = spot_bt_test.stand_walk_sit_bt:main',
 		'spot_arm_demo = spot_bt_test.demo_arm:main',
+        'spot_graphnav_demo = spot_bt_test.graphav_test:main',
         ],
     },
 )

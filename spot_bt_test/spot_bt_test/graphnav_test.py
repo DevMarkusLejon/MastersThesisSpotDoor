@@ -83,15 +83,9 @@ def main():
     mission_blackboard.register_key(key="graph_nav_waypoint_id", access=Access.WRITE)
     mission_blackboard.register_key(key="graph_nav_localization_method", access=Access.WRITE)
     
-    mission_blackboard.graph_nav_map_path = ""
-    mission_blackboard.graph_nav_waypoint_id = ""
-    mission_blackboard.graph_nav_localization_method = "fiducial"
-
-    
-    graph_nav_map_path = str(main.node.declare_parameter("graph_nav_map_path", "").value)
-
-
-
+    mission_blackboard.graph_nav_map_path = "~/thesis/colcon_ws/src/my_spot_thesis/spot_bt_test/graphnavs"
+    mission_blackboard.graph_nav_waypoint_id = "miry-wolf-.eaW1gvPX7wHWC961kBKOQ"
+    mission_blackboard.graph_nav_localization_method = "fiducial" #or "waypoint"
 
     # Enable tree stewardship
     root = create_root()
