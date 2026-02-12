@@ -29,16 +29,18 @@ from spot_bt_ros_py.tick import generic_pre_tick_handler
 from spot_bt_ros_py.utils import create_mission_blackboard
 from spot_bt_ros_py.utils import create_status_blackboard
 
+from tree_nodes.bt_actions.graphnav.test_graphnav_action import UploadGraphNavGraph
+from tree_nodes.bt_actions.graphnav.test_graphnav_action import LocalizeToWaypointInGraphNav
+from tree_nodes.bt_actions.graphnav.test_graphnav_action import NavigateToWaypointInGraphNav
 
 def create_graphnav_behavior() -> Sequence:
     """"""
     behavior = Sequence("GraphNav test behavior", memory=True)
     behavior.add_children(
         [
-            #upload graph
-            #compute path
-            #navigate to graph
-
+            UploadGraphNavGraph(name="Upload GraphNav map"),
+            LocalizeToWaypointInGraphNav(name="Set GraphNav localization"),
+            NavigateToWaypointInGraphNav(name="Navigate to GraphNav waypoint"),
         ]
     )
     return behavior
@@ -73,11 +75,20 @@ def main():
     Blackboard.enable_activity_stream(maximum_size=100)
 
     # Create status blackboard
-    status_blackboard = create_status_blackboard(docked=True)
+    status_blackboard = create_status_blackboard(docked=False)
 
     # Create mission blackboard
     mission_blackboard = create_mission_blackboard(dock_id=549)
-    #Add info as needed
+    mission_blackboard.register_key(key="graph_nav_map_path", access=Access.WRITE)
+    mission_blackboard.register_key(key="graph_nav_waypoint_id", access=Access.WRITE)
+    mission_blackboard.register_key(key="graph_nav_localization_method", access=Access.WRITE)
+    
+    mission_blackboard.graph_nav_map_path = ""
+    mission_blackboard.graph_nav_waypoint_id = ""
+    mission_blackboard.graph_nav_localization_method = "fiducial"
+
+    
+    graph_nav_map_path = str(main.node.declare_parameter("graph_nav_map_path", "").value)
 
 
 
