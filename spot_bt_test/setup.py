@@ -25,7 +25,7 @@ setup(
         'console_scripts': [
 		'spot_standwalksit_demo = spot_bt_test.stand_walk_sit_bt:main',
 		'spot_arm_demo = spot_bt_test.demo_arm:main',
-        'spot_graphnav_demo = spot_bt_test.graphav_test:main',
+        'spot_graphnav_demo = spot_bt_test.graphnav_test:main',
         ],
     },
 )

@@ -27,7 +27,7 @@ def get_demo_type_node(context: LaunchContext) -> list[Node]:
 
     return [
         Node(
-            package="spot_bt_ros_py",
+            package="spot_bt_test",
             executable=f"spot_{demo_type}_demo",
             output="screen",
         )
@@ -91,10 +91,5 @@ def generate_launch_description():
             spot_controller_launch,
             spot_planner_launch,
             OpaqueFunction(function=get_demo_type_node),
-            """Node(
-                package="spot_bt_test",
-                executable="spot_arm_demo",
-                output="screen",
-            ),"""
         ]
     )
