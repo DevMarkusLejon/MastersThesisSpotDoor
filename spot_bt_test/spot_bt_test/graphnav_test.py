@@ -30,6 +30,7 @@ from spot_bt_ros_py.utils import create_mission_blackboard
 from spot_bt_ros_py.utils import create_status_blackboard
 
 from spot_bt_test.tree_nodes.test_graphnav_action import UploadGraphNavGraph
+from spot_bt_test.tree_nodes.test_graphnav_action import WaitForGraphNavReady
 from spot_bt_test.tree_nodes.test_graphnav_action import LocalizeToWaypointInGraphNav
 from spot_bt_test.tree_nodes.test_graphnav_action import NavigateToWaypointInGraphNav
 
@@ -39,6 +40,7 @@ def create_graphnav_behavior() -> Sequence:
     behavior.add_children(
         [
             UploadGraphNavGraph(name="Upload GraphNav map"),
+            WaitForGraphNavReady(name="Wait for GraphNav ready"),
             LocalizeToWaypointInGraphNav(name="Set GraphNav localization"),
             NavigateToWaypointInGraphNav(name="Navigate to GraphNav waypoint"),
         ]
@@ -82,8 +84,7 @@ def main():
     mission_blackboard.register_key(key="graph_nav_map_path", access=Access.WRITE)
     mission_blackboard.register_key(key="graph_nav_localization_waypoint_id", access=Access.WRITE)
     mission_blackboard.register_key(key="graph_nav_localization_method", access=Access.WRITE)
-    
-    mission_blackboard.graph_nav_map_path = "~/thesis/colcon_ws/src/my_spot_thesis/spot_bt_test/graphnavs"
+    mission_blackboard.graph_nav_map_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/spot_bt_test/graphnavs"
     mission_blackboard.graph_nav_localization_waypoint_id = "miry-wolf-.eaW1gvPX7wHWC961kBKOQ"
     mission_blackboard.graph_nav_localization_method = "fiducial" #or "waypoint"
 
