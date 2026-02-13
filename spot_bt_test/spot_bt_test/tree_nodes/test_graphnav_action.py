@@ -92,7 +92,7 @@ class WaitForGraphNavReady(Behaviour):
         self.client: ServiceClient = None
         self.future: Future = None
         self.node: Node = Node
-        self._result: ListGraph.Response | None = None
+        self._result: GraphNavGetLocalizationPose.Response | None = None
 
     def setup(self, **kwargs):
         """Setup ROS 2 connection to spot_driver"""
@@ -104,13 +104,13 @@ class WaitForGraphNavReady(Behaviour):
             raise KeyError(error_msgs) from e
         
         # Create service client
-        self.client = self.node.create_client(ListGraph, "list_graph")
+        self.client = self.node.create_client(GraphNavGetLocalizationPose, "graph_nav_get_localization_pose")
 
     def initialise(self):
         """Initialize variables and perform service behavior for first tick."""
         self.logger.debug(f"  {self.name} [WaitForGraphNavReady::initialise()]")
-        self.blackboard = self.attach_blackboard_client("mission")
-        self.blackboard.register_key(key="graph_nav_map_path", access=Access.READ)
+        #self.blackboard = self.attach_blackboard_client("mission")
+        #self.blackboard.register_key(key="graph_nav_map_path", access=Access.READ)
 
         self.future = None
         self._result = None
@@ -119,34 +119,29 @@ class WaitForGraphNavReady(Behaviour):
         self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()]")
 
         if not self.client.service_is_ready():
-            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING service not ready]")
+            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING Service not ready]")
             return Status.RUNNING
 
         if self.future is None:
-            request = ListGraph.Request()
-            request.upload_filepath = self.blackboard.graph_nav_map_path
+            request = GraphNavGetLocalizationPose.Request()
             self.future = self.client.call_async(request)
-            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING future is none]")
+            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING Future is none]")
             return Status.RUNNING
         
         if not self.future.done():
             return Status.RUNNING
-        self.node.get_logger().warn(f"LIST GRAPH PATH: [{self.blackboard.graph_nav_map_path}]")
+        
         self._result = self.future.result()
         self.future = None
         
         if self._result is None:
-            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING result is none]")
+            self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING Result is none]")
             return Status.RUNNING
         
-        if len(self._result.waypoint_ids) > 0:
-            self.node.get_logger().info(f"GraphNav ready: {len(self._result.waypoint_ids)} waypoints")
-            return Status.SUCCESS
+        self.node.get_logger().info(f"GraphNav ready (localized={self._result.success})")
+        return Status.SUCCESS
 
-        self.logger.debug(f"  {self.name} [WaitForGraphNavReady::update()][RUNNING waypoint is 0]")
-        return Status.RUNNING
-
-class LocalizeToWaypointInGraphNav(Behaviour):
+class LocalizeInGraphNav(Behaviour):
     """Set GraphNav localization via fiducial or waypoint"""
     def __init__(self, name):
         super().__init__(name)
@@ -171,32 +166,31 @@ class LocalizeToWaypointInGraphNav(Behaviour):
     
     def initialise(self):
         """Initialize variables and perform service behavior for first tick."""
-        self.logger.debug(f"  {self.name} [LocalizeToWaypointInGraphNav::initialise()]")
+        self.logger.debug(f"  {self.name} [LocalizeInGraphNav::initialise()]")
         self.blackboard = self.attach_blackboard_client("mission")
         self.blackboard.register_key(key="graph_nav_localization_method", access=Access.READ)
-        self.blackboard.register_key(
-            key="graph_nav_localization_waypoint_id", access=Access.READ)
+        self.blackboard.register_key(key="graph_nav_waypoint_id", access=Access.READ)
 
         self.future = None
         self._result = None
     
     def update(self) -> Status:
-        self.logger.debug(f"  {self.name} [LocalizeToWaypointInGraphNav::update()]")
+        self.logger.debug(f"  {self.name} [LocalizeInGraphNav::update()]")
 
         if not self.client.service_is_ready():
-            self.logger.debug(f"  {self.name} [LocalizeToWaypointInGraphNav::update()][RUNNING]")
+            self.logger.debug(f"  {self.name} [LocalizeInGraphNav::update()][RUNNING]")
             return Status.RUNNING
         
         if self.future is None:
             request = GraphNavSetLocalization.Request()
             request.method = self.blackboard.graph_nav_localization_method
-            request.waypoint_id = self.blackboard.graph_nav_localization_waypoint_id
+            request.waypoint_id = self.blackboard.graph_nav_waypoint_id
             self.future = self.client.call_async(request)
-            self.logger.debug(f"  {self.name} [LocalizeToWaypointInGraphNav::update()][RUNNING]")
+            self.logger.debug(f"  {self.name} [LocalizeInGraphNav::update()][RUNNING]")
             return Status.RUNNING
         
         if not self.future.done():
-            self.logger.debug(f"  {self.name} [LocalizeToWaypointInGraphNav::update()][RUNNING]")
+            self.logger.debug(f"  {self.name} [LocalizeInGraphNav::update()][RUNNING]")
             return Status.RUNNING
         
         self._result = self.future.result()
@@ -240,12 +234,12 @@ class NavigateToWaypointInGraphNav(Behaviour, SpotBTActionClientMixin):
         """Initialize variables and perform service behavior for first tick."""
         self.logger.debug(f"  {self.name} [NavigateToWaypointInGraphNav::initialise()]")
         self.blackboard = self.attach_blackboard_client("mission")
-        self.blackboard.register_key(key="graph_nav_localization_waypoint_id", access=Access.READ)
+        self.blackboard.register_key(key="graph_nav_waypoint_id", access=Access.READ)
         self._result_status = None
         self._result = None
 
         goal_msg = NavigateTo.Goal()
-        goal_msg.waypoint_id = self.blackboard.graph_nav_localization_waypoint_id
+        goal_msg.waypoint_id = self.blackboard.graph_nav_waypoint_id
         self.future = self.client.send_goal_async(goal_msg, feedback_callback=self._feedback)
         self.future.add_done_callback(self._goal_response_callback)
 
@@ -265,6 +259,7 @@ class NavigateToWaypointInGraphNav(Behaviour, SpotBTActionClientMixin):
         
         if self.future.done():
             if self._result.success:
+                self.node.get_logger().info("GraphNav successfully navigated")
                 return Status.SUCCESS
             
             self.logger.error(self._result.message)
@@ -283,10 +278,56 @@ class NavigateToWaypointInGraphNav(Behaviour, SpotBTActionClientMixin):
         if self.status == Status.RUNNING and new_status == Status.INVALID:
             self._send_cancel_request()
 
-    def _feedback(self, feedback_msg: NavigateTo.Feedback):
+    def _feedback(self, feedback_msg):
         """Log action feedback for MoveToGoal."""
         self.node.get_logger().info(
-            f"Current GraphNav waypoint: {feedback_msg.waypoint_id}",
-            throttle_duration_sec=0.5
+            f"Navigating...",
+            throttle_duration_sec=1.0
         )
         
+
+class SetGraphNavWaypoint(Behaviour):
+    def __init__(self, name: str, waypoint_id: str):
+        super().__init__(name)
+        self.blackboard: Client = None
+        self.waypoint_id = waypoint_id
+
+    def initialise(self):
+        """Initialize variables and perform service behavior for first tick."""
+        self.logger.debug(f"  {self.name} [SetGraphNavWaypoint::initialise()]")
+
+        self.blackboard = self.attach_blackboard_client("mission")
+        self.blackboard.register_key(key="graph_nav_waypoint_id", access=Access.WRITE)
+
+    def update(self) -> Status:
+        self.logger.debug(f"  {self.name} [SetGraphNavWaypoint::update()]")
+
+        self.blackboard.graph_nav_waypoint_id = self.waypoint_id
+        self.logger.debug(f"Set waypoint -> {self.waypoint_id}")
+        return Status.SUCCESS
+    
+
+class GetNextGraphNavWaypoint(Behaviour):
+    def __init__(self, name):
+        super().__init__(name)
+        self.blackboard: Client = None
+
+    def initialise(self):
+        """Initialize variables and perform service behavior for first tick."""
+        self.logger.debug(f"  {self.name} [GetNextGraphNavWaypoint::initialise()]")
+
+        self.blackboard = self.attach_blackboard_client("mission")
+        self.blackboard.register_key(key="waypoint_list", access=Access.READ)
+        self.blackboard.register_key(key="graph_nav_waypoint_id", access=Access.READ)
+
+    def update(self) -> Status:
+        self.logger.debug(f"  {self.name} [GetNextGraphNavWaypoint::update()]")
+
+        if len(self.blackboard.waypoint_list) == 0:
+            self.logger.info("No more waypoints")
+            return Status.FAILURE
+        
+        next_wp = self.blackboard.waypoint_list.pop(0)
+        self.blackboard.graph_nav_waypoint_id = next_wp
+        self.logger.info(f"Next waypoint: {next_wp}")
+        return Status.SUCCESS

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import sys
@@ -31,8 +30,11 @@ from spot_bt_ros_py.utils import create_status_blackboard
 
 from spot_bt_test.tree_nodes.test_graphnav_action import UploadGraphNavGraph
 from spot_bt_test.tree_nodes.test_graphnav_action import WaitForGraphNavReady
-from spot_bt_test.tree_nodes.test_graphnav_action import LocalizeToWaypointInGraphNav
+from spot_bt_test.tree_nodes.test_graphnav_action import LocalizeInGraphNav
 from spot_bt_test.tree_nodes.test_graphnav_action import NavigateToWaypointInGraphNav
+from spot_bt_test.tree_nodes.test_graphnav_action import SetGraphNavWaypoint
+from spot_bt_test.tree_nodes.test_graphnav_action import GetNextGraphNavWaypoint
+
 
 def create_graphnav_behavior() -> Sequence:
     """"""
@@ -40,8 +42,12 @@ def create_graphnav_behavior() -> Sequence:
     behavior.add_children(
         [
             UploadGraphNavGraph(name="Upload GraphNav map"),
-            WaitForGraphNavReady(name="Wait for GraphNav ready"),
-            LocalizeToWaypointInGraphNav(name="Set GraphNav localization"),
+            #WaitForGraphNavReady(name="Wait for GraphNav ready"),
+            SetGraphNavWaypoint(name="Set localize waypoint", waypoint_id=""),
+            LocalizeInGraphNav(name="Set GraphNav localization"),
+            SetGraphNavWaypoint(name="Set WP1", waypoint_id="wimpy-emu-uD6cjojKhSWPIf4V5cHnig=="), #wp3
+            NavigateToWaypointInGraphNav(name="Navigate to GraphNav waypoint"),
+            SetGraphNavWaypoint(name="Set WP2", waypoint_id="moire-hornet-5.hKWSBlGAr22Qd+ZXv7GA=="), #wp12
             NavigateToWaypointInGraphNav(name="Navigate to GraphNav waypoint"),
         ]
     )
@@ -82,10 +88,13 @@ def main():
     # Create mission blackboard
     mission_blackboard = create_mission_blackboard(dock_id=549)
     mission_blackboard.register_key(key="graph_nav_map_path", access=Access.WRITE)
-    mission_blackboard.register_key(key="graph_nav_localization_waypoint_id", access=Access.WRITE)
+    mission_blackboard.register_key(key="graph_nav_waypoint_id", access=Access.WRITE)
+    mission_blackboard.register_key(key="waypoint_list", access=Access.WRITE)
     mission_blackboard.register_key(key="graph_nav_localization_method", access=Access.WRITE)
+
     mission_blackboard.graph_nav_map_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/spot_bt_test/graphnavs"
-    mission_blackboard.graph_nav_localization_waypoint_id = "miry-wolf-.eaW1gvPX7wHWC961kBKOQ"
+    mission_blackboard.waypoint_list = []
+    #mission_blackboard.graph_nav_waypoint_id = "moire-hornet-5.hKWSBlGAr22Qd+ZXv7GA=="
     mission_blackboard.graph_nav_localization_method = "fiducial" #or "waypoint"
 
     # Enable tree stewardship
