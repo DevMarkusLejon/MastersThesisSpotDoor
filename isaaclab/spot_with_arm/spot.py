@@ -183,7 +183,7 @@ SPOT_CFG = ArticulationCfg(
 
 SPOT_ARM_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=os.path.expanduser("/workspace/IsaacRobotics/assets/spot_arm.usd"), #TODO: use nucleus path
+        usd_path="/workspace/isaaclab/source/isaaclab_assets/data/own_assets/spot_with_arm/spot_with_arm.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
