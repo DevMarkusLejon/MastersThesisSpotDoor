@@ -60,27 +60,44 @@ def print_observations(observations: List[float]):
     print("last_action:", observations[50:69])
 
 
-class OnnxCommandGenerator:
+class OnnxDualCommandGenerator:
     """class to be used as generator for spots command stream that executes
     an onnx model and converts the output to a spot command"""
 
     def __init__(
-        self, context: OnnxControllerContext, config: OrbitConfig, policy_file_name: os.PathLike, verbose: bool
+        self, 
+        context: OnnxControllerContext, 
+        body_config: OrbitConfig, 
+        arm_config: OrbitConfig,
+        body_policy_file_name: os.PathLike, 
+        arm_policy_file_name: os.PathLike,
+        verbose: bool
     ):
         self._context = context
-        self._config = config
-        self._inference_session = ort.InferenceSession(policy_file_name)
-        self._last_action = [0] * 19
-        self._shifted_action = [0] * 19
         self._count = 1
         self._init_pos = None
         self._init_load = None
         self.verbose = verbose
 
+        self._body_config = body_config
+        self._arm_config = arm_config
+        self._body_session = ort.InferenceSession(body_policy_file_name)
+        self._arm_session = ort.InferenceSession(arm_policy_file_name)
+
+        self._last_action = [0] * 19
+        self._body_last_action = [0] * 19
+        self._arm_last_action = [0] * 19
+
+        self._shifted_action = [0] * 19
+
+        self._body_dof = 12
+        self._arm_dof = 7
+        self._total_dof = 19
+
         # own variable for logging
         self._log_file = open("/home/spot/spot-rl-deployment/spot-rl-example/python/log/observation_log.txt")
 
-        # own variable for create proto blend
+        # mask which joint should use arm policy
         # true -> hold at init pos, false -> moves with policy
         self._hold_mask = [
             False, False, False, # front left
@@ -101,6 +118,30 @@ class OnnxCommandGenerator:
             self._init_pos = self._context.latest_state.joint_states.position
             self._init_load = self._context.latest_state.joint_states.load
 
+
+        #Body
+        body_input_list = self.collect_inputs(self._context.latest_state, self._body_config, self._body_last_action)
+        body_input = [np.array(body_input_list).astype("float32")]
+        body_output = self._body_session.run(None, {"obs": body_input})[0].tolist()[0]
+        
+        body_shifted_output = self.postprocess_output(body_output, self._body_config)
+        
+        #Arm
+        arm_input_list = self.collect_inputs(self._context.latest_state, self._arm_config, self._arm_last_action)
+        arm_input = [np.array(arm_input_list).astype("float32")]
+        arm_output = self._arm_session.run(None, {"obs": arm_input})[0].tolist()[0]
+        
+        arm_shifted_output = self.postprocess_output(arm_output, self._arm_config)
+        
+        #Merge
+        merged_shifted_output = self.merge_policy_output(body_shifted_output, arm_shifted_output)
+        
+        orbit_to_spot = find_ordering(ordered_joint_names_orbit, ordered_joint_names_bosdyn)
+        merged_reordered_output = reorder(merged_shifted_output, orbit_to_spot)
+
+        proto = self.create_proto_dual(merged_reordered_output, self._body_config, self._arm_config)
+
+        """
         # extract observation data from latest spot state data
         input_list = self.collect_inputs(self._context.latest_state, self._config)
         # print("observations", input_list)
@@ -124,16 +165,23 @@ class OnnxCommandGenerator:
 
         # generate proto message from target joint positions
         proto = self.create_proto(reordered_output)
-
+        """
+        """
         # cache data for history and logging
         self._last_action = output
         self._shifted_action = shifted_output
         self._count += 1
         self._context.count += 1
+        """
+        self._body_last_action = body_output
+        self._arm_last_action = arm_output
+        self._shifted_action = merged_shifted_output
+        self._count += 1
+        self._context.count += 1
 
         return proto
 
-    def collect_inputs(self, state: JointControlStreamRequest, config: OrbitConfig):
+    def collect_inputs(self, state: JointControlStreamRequest, config: OrbitConfig, last_action: List[float]):
         """extract observation data from spots current state and format for onnx
 
         arguments
@@ -149,7 +197,7 @@ class OnnxCommandGenerator:
         observations += self._context.velocity_cmd
         observations += ob.get_joint_positions(state, config)
         observations += ob.get_joint_velocity(state)
-        observations += self._last_action
+        observations += last_action
         
         if self.verbose and self._count%25==0:
             print_observations(observations)
@@ -157,6 +205,59 @@ class OnnxCommandGenerator:
             self.log_observations_to_file(observations)
 
         return observations
+
+    def create_proto_dual(self, pos_command: List[float], body_config: OrbitConfig, arm_config: OrbitConfig):
+        """generate a proto msg for spot with a given pos_command for dual policy
+
+        arguments
+        pos_command -- list of joint positions see spot.constants for order
+        body_config -- config for body policy
+        arm_config -- config for arm policy
+
+        return proto message to send in spots command stream
+        """
+        update_proto = robot_command_pb2.JointControlStreamRequest()
+        set_timestamp_from_now(update_proto.header.request_timestamp)
+        update_proto.header.client_name = "rl_example_client"
+
+        body_kp = dict_to_list(body_config.kp, ordered_joint_names_bosdyn)
+        body_kd = dict_to_list(body_config.kd, ordered_joint_names_bosdyn)
+
+        arm_kp = dict_to_list(arm_config.kp, ordered_joint_names_bosdyn)
+        arm_kd = dict_to_list(arm_config.kd, ordered_joint_names_bosdyn)
+
+        k_q_p = body_kp[:self._body_dof] + arm_kp[self._body_dof:]
+        k_qd_p = body_kd[:self._body_dof] + arm_kd[self._body_dof:]
+
+        N_DOF = len(pos_command)
+        pos_cmd = [0] * N_DOF
+        vel_cmd = [0] * N_DOF
+        load_cmd = [0] * N_DOF
+
+        for joint_ind in range(N_DOF):
+            pos_cmd[joint_ind] = pos_command[joint_ind]
+            vel_cmd[joint_ind] = 0
+            load_cmd[joint_ind] = 0
+
+        # Fill in gains the first dt
+        if self._count == 1:
+            update_proto.joint_command.gains.k_q_p.extend(k_q_p)
+            update_proto.joint_command.gains.k_qd_p.extend(k_qd_p)
+
+        update_proto.joint_command.position.extend(pos_cmd)
+        update_proto.joint_command.velocity.extend(vel_cmd)
+        update_proto.joint_command.load.extend(load_cmd)
+
+        observation_time = self._context.latest_state.joint_states.acquisition_timestamp
+        end_time = seconds_to_timestamp(timestamp_to_sec(observation_time) + 0.1)
+        update_proto.joint_command.end_time.CopyFrom(end_time)
+
+        # Let it extrapolate the command a little
+        update_proto.joint_command.extrapolation_duration.nanos = int(5 * 1e6)
+
+        # Set user key for latency tracking
+        update_proto.joint_command.user_command_key = self._count
+        return update_proto
 
     def create_proto(self, pos_command: List[float]):
         """generate a proto msg for spot with a given pos_command
@@ -346,3 +447,22 @@ class OnnxCommandGenerator:
             self._log_file.close()
 
         
+    def postprocess_output(self, output: List[float], config: OrbitConfig) -> List[float]:
+        """Apply action scale and default joint offset to output."""
+        test_scale = min(0.1 * self._count, 1)
+
+        scaled_output = list(map(mul, [config.action_scale] * 19, output))
+        test_scaled = list(map(mul, [test_scale] * 19, scaled_output))
+
+        default_joints = dict_to_list(config.default_joints, ordered_joint_names_orbit)
+        shifted_output = list(map(add, test_scaled, default_joints))
+
+        return shifted_output
+    
+    def merge_policy_output(self, body_output: List[float], arm_output: List[float]) -> List[float]:
+        """Merge two 19-DOF Orbit-order outputs.
+
+        First 12 joints come from body policy.
+        Last 7 joints come from arm policy.
+        """
+        return body_output[:self._body_dof] + arm_output[self,self._body_dof:]
