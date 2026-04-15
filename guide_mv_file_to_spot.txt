@@ -19,3 +19,8 @@ cd ~/spot-rl-deployment/spot-rl-example/python
 python3 spot_rl_demo.py <spot_ip> ~/spot-rl-deployment/models/<path_to_dir> --gamepad-config ./gamepad_config.json
 
 -m or --mock as argument to use spot_mock instead of real spot
+
+
+Move log file from Jetson to PC.
+From host pc:
+scp -P 20022 spot@192.168.80.3:~/spot-rl-deployment/spot-rl-example/python/logs/<log_file.txt> <path_to_copy_files_to>

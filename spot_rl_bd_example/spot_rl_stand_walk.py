@@ -16,7 +16,7 @@ from orbit.onnx_command_generator import (
     OnnxCommandGenerator,
     OnnxControllerContext,
     StateHandler,
-    OnnxDualCommandGenerator
+    OnnxStandWalkCommandGenerator
 )
 from spot.mock_spot import MockSpot
 from spot.spot import Spot
@@ -27,28 +27,28 @@ def main():
     """Command line interface. change that is ok"""
     parser = argparse.ArgumentParser()
     bosdyn.client.util.add_base_arguments(parser)
-    parser.add_argument("--body-policy", type=Path)
-    parser.add_argument("--arm-policy", type=Path)
+    parser.add_argument("--walk-policy", type=Path)
+    parser.add_argument("--stand-policy", type=Path)
     parser.add_argument("-m", "--mock", action="store_true")
     parser.add_argument("--gamepad-config", type=Path)
     options = parser.parse_args()
 
     context = OnnxControllerContext()
-    body_conf_file = orbit.orbit_configuration.detect_config_file(options.body_policy)
-    body_policy_file = orbit.orbit_configuration.detect_policy_file(options.body_policy)
-    body_config = orbit.orbit_configuration.load_configuration(body_conf_file)
+    walk_conf_file = orbit.orbit_configuration.detect_config_file(options.walk_policy)
+    walk_policy_file = orbit.orbit_configuration.detect_policy_file(options.walk_policy)
+    walk_config = orbit.orbit_configuration.load_configuration(walk_conf_file)
 
-    arm_conf_file = orbit.orbit_configuration.detect_config_file(options.arm_policy)
-    arm_policy_file = orbit.orbit_configuration.detect_policy_file(options.arm_policy)
-    arm_config = orbit.orbit_configuration.load_configuration(arm_conf_file)
+    stand_conf_file = orbit.orbit_configuration.detect_config_file(options.stand_policy)
+    stand_policy_file = orbit.orbit_configuration.detect_policy_file(options.stand_policy)
+    stand_config = orbit.orbit_configuration.load_configuration(stand_conf_file)
 
-    print("[INFO] BODY CONFIG: ", body_config)
-    print("[INFO] Arm config: ", arm_config)
+    print("[INFO] BODY CONFIG: ", walk_config)
+    print("[INFO] Arm config: ", stand_config)
 
     state_handler = StateHandler(context)
     print(options.verbose)
     #TODO: Change the class?
-    command_generator = OnnxDualCommandGenerator(context, body_config, arm_config, body_policy_file, arm_policy_file, options.verbose)
+    command_generator = OnnxStandWalkCommandGenerator(context, walk_config, stand_config, walk_policy_file, stand_policy_file, options.verbose)
 
     # 333 Hz state update / 6 => ~56 Hz control updates
     timeing_policy = EventDivider(context.event, 6)
