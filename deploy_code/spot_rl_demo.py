@@ -39,7 +39,7 @@ def main():
     print(config)
 
     state_handler = StateHandler(context)
-    print(options.verbose)
+    print("Verbose: ", options.verbose)
     command_generator = OnnxCommandGenerator(context, config, policy_file, options.verbose)
 
     # 333 Hz state update / 6 => ~56 Hz control updates
@@ -58,16 +58,24 @@ def main():
         gamepad.start_listening()
 
     if options.mock:
+        print("Starting Mock Spot")
         spot = MockSpot()
     else:
+        print("Starting Real Spot")
         spot = Spot(options)
 
     with spot.lease_keep_alive():
         try:
             spot.power_on()
-            spot.stand(0.0)
+            #spot.stand(0.0)
             spot.start_state_stream(state_handler)
+            
+            context.event.clear()
+            context.event.wait()
+            print("Joint state init post printed in spot_rl_demo")
+            print(list(context.latest_state.joint_states.position))
 
+            print("Press Enter to begin, Press Enter again to stop")
             input()
             spot.start_command_stream(command_generator, timeing_policy)
             input()
@@ -84,6 +92,8 @@ def main():
             if gamepad is not None:
                 gamepad.stop_listening()
             print("all stopped")
+            command_generator.close_log_file()
+            print("closed log file")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,5 @@
 import ast
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -219,7 +220,7 @@ def plot_all_groups(data):
 
 # ----- MAIN -----
 def main():
-    filename = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/spot_deploy_data/spot_joint_values.txt"
+    filename = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/spot_joint_values.txt"
     data = load_data(filename)
     validate_data(data)
     print_summary(data)

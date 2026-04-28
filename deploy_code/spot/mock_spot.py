@@ -41,6 +41,32 @@ class MockSpot:
         self._state_msg.kinematic_state.odom_tform_body.rotation.w = 1
         self._state_msg.joint_states.position.extend([0] * 19)
         self._state_msg.joint_states.velocity.extend([0] * 19)
+        
+        # Own code
+        # Set inition position of mock spot. Which would be done in normal spot by positional reading from api
+        self._state_msg.joint_states.position[0] = 0.1
+        self._state_msg.joint_states.position[1] = 0.9
+        self._state_msg.joint_states.position[2] = -1.5
+        self._state_msg.joint_states.position[3] = -0.1
+        self._state_msg.joint_states.position[4] = 0.9
+        self._state_msg.joint_states.position[5] = -1.5
+        self._state_msg.joint_states.position[6] = 0.1
+        self._state_msg.joint_states.position[7] = 1.1
+        self._state_msg.joint_states.position[8] = -1.5
+        self._state_msg.joint_states.position[9] = -0.1
+        self._state_msg.joint_states.position[10] = 1.1
+        self._state_msg.joint_states.position[11] = -1.5
+        
+        self._state_msg.joint_states.position[12] = 0
+        self._state_msg.joint_states.position[13] = -3.13
+        self._state_msg.joint_states.position[14] = 3.13
+        self._state_msg.joint_states.position[15] = 1.56
+        self._state_msg.joint_states.position[16] = 0
+        self._state_msg.joint_states.position[17] = -1.56
+        self._state_msg.joint_states.position[18] = 0
+        print("set init joint position from mock_spot.start_state_stream")
+        print(self._state_msg.joint_states.position)
+
         self._state_msg.joint_states.load.extend([0] * 19)
 
         self._stateUpdates = RepeatedTimer(1 / 333, on_state_update, args=[self._state_msg])
@@ -61,7 +87,12 @@ class MockSpot:
     def _commandUpdate(self):
         while not self._command_stream_stopping:
             self._timing_policy()
-            self._command_generator()
+            proto_command_response = self._command_generator()
+            
+            # Own code
+            # Update mock spot joint position with the value from the proto message
+            for i, pos in enumerate(proto_command_response.joint_command.position):
+                self._state_msg.joint_states.position[i] = pos
 
     def power_on(self):
         pass

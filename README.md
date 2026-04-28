@@ -26,3 +26,13 @@ https://github.com/sandialabs/spot_bt_ros
 
 # Clone this repository
 git clone https://github.com/TheMLGBros/MastersThesisSpotDoor
+
+
+# Content
+- Trained policies
+Policies that are training in Isaac Lab for Spot with arm which are to be deployed on the real hardware.
+- Deployment code
+
+- Graph code
+
+- Isaac Lab data

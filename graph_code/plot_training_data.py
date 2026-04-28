@@ -38,7 +38,7 @@ def add_ema_smoothing(td: TrainingData, alpha: int = 0.1, column: str = "Value")
     td.df["EMA Smoothing"] = td.df[column].ewm(alpha=alpha).mean()
 
 
-def _figure_helper(name: str | None = None, figsize: [float, float] = [12, 8]):
+def _figure_helper(name: str | None = None, figsize: [float, float] = [12, 6]):
     plt.figure(num=name, figsize=figsize)
 
 
@@ -46,7 +46,7 @@ def _labeling_helper(y_label: str, x_label: str, title: str, legend_loc: str = "
     plt.ylabel(y_label)
     plt.xlabel(x_label)
     plt.title(title)
-    plt.legend(loc=legend_loc)
+    plt.legend()
 
 def _plot_helper(df: pd.DataFrame, name: str | None = None,  x_col: str = "Step", y_col: str = "Value", smoothed_data: str | None = None, raw_label: bool = True):
     if smoothed_data is not None and smoothed_data in df.columns:
@@ -101,7 +101,7 @@ def main():
         "all_terminations"
     ]
     #Files
-    file_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/locomotion_policy_20K_2_phase_lleg_disabled/"
+    file_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/logs_training/locomotion_policy_20K_2_phase_lleg_disabled/"
     file_ending = ".csv"
     file_names = [
         "rewards/base_angular_velocity",
