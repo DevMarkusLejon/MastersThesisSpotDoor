@@ -69,10 +69,10 @@ JOINT_COLOR_MAP = {
     "a0_sh0": "tab:blue", "a0_sh1": "tab:orange", "a0_el0": "tab:green", "a0_el1": "tab:red", "a0_wr0": "tab:purple", "a0_wr1": "tab:brown", "a0_f1x": "tab:pink",
 }
 
-VEL_LABELS = ["vx", "vy", "vz"]
+VEL_LABELS = ["X", "Y", "YAW"]
 
 VEL_COLOR_MAP = {
-    "vx": "tab:green", "vy": "tab:blue", "vz": "tab:red"
+    "X": "tab:green", "Y": "tab:blue", "YAW": "tab:red"
 }
 
 # ----- DATA LOADING -----
@@ -152,7 +152,7 @@ def print_summary(data):
 
 
 # ----- PLOTTING -----
-def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action):
+def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_legend=True):
     """Plot joint pos groupwise on ax."""
     for joint in joint_names:
         idx = JOINT_LABEL_TO_IDX[joint]
@@ -173,29 +173,30 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
             linestyle="--",
             linewidth=2,
         )
-        ax.hlines(
-            y=DEFAULT_JOINT_POSITION[idx],
-            xmin=0,
-            xmax=max(x),
-            color=color,
-            linestyle=":",
-            linewidth=2,
-        )
-        ax.hlines(
-            y=[ UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
-            xmin=0,
-            xmax=max(x),
-            color=color,
-            linestyle="-.",
-            linewidth=2,
-        )
-
-    ax.set_ylabel("Joint angle [rad]")
-    ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action, Dotted - Default)")
+        # ax.hlines(
+        #     y=DEFAULT_JOINT_POSITION[idx],
+        #     xmin=0,
+        #     xmax=max(x),
+        #     color=color,
+        #     linestyle=":",
+        #     linewidth=2,
+        # )
+        # ax.hlines(
+        #     y=[UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
+        #     xmin=0,
+        #     xmax=max(x),
+        #     color=color,
+        #     linestyle="-.",
+        #     linewidth=2,
+        # )
+    if show_ylabel:
+        ax.set_ylabel("Joint angle [rad]")
+    if show_legend:
+        ax.legend(fontsize=8, ncol=1, loc="upper left")
+    ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action)")#, Dotted - Default)")
     ax.grid(True)
-    ax.legend(fontsize=8, ncol=1, loc="upper left")
 
-def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel):
+def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel=True, show_legend=True):
     "Plot joint vel groupwise on ax."
     for joint in joint_names:
         idx = JOINT_LABEL_TO_IDX[joint]
@@ -217,14 +218,15 @@ def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel):
         #     linewidth=2,
         # )
 
-
-    ax.set_ylabel("Joint vel [rad/s]")
+    if show_ylabel:
+        ax.set_ylabel("Joint vel [rad/s]")
+    if show_legend:
+        ax.legend(fontsize=8, ncol=1, loc="upper left")
     ax.set_title(f"{group_name} joint vels. (Solid - Vel)")
     ax.grid(True)
-    ax.legend(fontsize=8, ncol=1, loc="upper left")
 
 
-def plot_basevel_subplot(ax, x, base_vel, cmd_vel):
+def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     """Plot vel comparison on ax."""
     for i, vel_name in enumerate(VEL_LABELS):
         vel_color = VEL_COLOR_MAP[vel_name] 
@@ -250,7 +252,8 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel):
     ax.set_ylabel("Velocity [m/s]")
     ax.set_title("Base linear velocity vs commanded. (Solid - Base, Dashed - Commanded)")
     ax.grid(True)
-    ax.legend(fontsize=8, loc="upper left")
+    if show_legend:
+        ax.legend(fontsize=8, loc="upper left")
 
 
 def plot_all_groups(data):
@@ -263,20 +266,30 @@ def plot_all_groups(data):
 
     x = np.arange(joint_pos.shape[0])
     figures = []
+    # Plot joint pos
     for group_name, joint_names in JOINT_GROUPS.items():
-        fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
+        fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
         plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
         plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
         plt.tight_layout()
         figures.append((f"{group_name}_joint_pos", fig))
-    #plt.show()
-    for group_name, joint_names in JOINT_GROUPS.items():
-        fig, (jointvel_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
-        plot_jointvel_subplot(jointvel_ax, x, joint_names, group_name, joint_vel)
-        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
-        plt.tight_layout()
-        figures.append((f"{group_name}_joint_vel", fig))
-    #plt.show()
+
+    # Plot joint vels
+    # for group_name, joint_names in JOINT_GROUPS.items():
+    #     fig, (jointvel_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
+    #     plot_jointvel_subplot(jointvel_ax, x, joint_names, group_name, joint_vel)
+    #     plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
+    #     plt.tight_layout()
+    #     figures.append((f"{group_name}_joint_vel", fig))
+    
+    # Plot togheter
+    fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"], ["VEL", "VEL"]], figsize=(12,8), sharex=True) 
+    for group_name in ["FL", "FR", "HL",  "HR"]:
+        plot_jointpos_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_ylabel=(group_name in ["FL", "HL"]), show_legend=(group_name=="FL"))
+    plot_basevel_subplot(mosaic_ax["VEL"], x, base_vel, cmd_vel)
+    plt.tight_layout()
+    figures.append(("all_joint_pos", fig))
+
     return figures
 
 

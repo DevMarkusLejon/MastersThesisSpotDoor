@@ -43,7 +43,7 @@ def main():
     stand_config = orbit.orbit_configuration.load_configuration(stand_conf_file)
 
     print("[INFO] BODY CONFIG: ", walk_config)
-    print("[INFO] Arm config: ", stand_config)
+    print("[INFO] ARM CONFIG: ", stand_config)
 
     state_handler = StateHandler(context)
     print(options.verbose)

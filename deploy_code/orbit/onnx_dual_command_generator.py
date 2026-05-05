@@ -225,7 +225,7 @@ class OnnxDualCommandGenerator:
 
         if self.verbose and self._count%25==0:
             print_observations(body_observations)
-            print(arm_observations)
+            print_observations(arm_observations)
             #print("[INFO] cmd", self._context.velocity_cmd)
             #self.log_observations_to_file(observations)
         return body_observations, arm_observations
