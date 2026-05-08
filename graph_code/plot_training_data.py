@@ -100,7 +100,8 @@ def plot_togheter_data(td_list: list[TrainingData], x_col: str = "Step", y_col: 
 
 def main(): 
     #DIR
-    dir = "locomotion_policy_20K_2_phase_lleg_disabled/"
+    #dir = "locomotion_policy_20K_2_phase_lleg_disabled/"
+    dir = "Standing_policy/"
     #Saving
     save_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/plots_training/" + dir
     save_ending = "_training_plot.png"
@@ -109,47 +110,71 @@ def main():
     file_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/logs_training/" + dir
     file_ending = ".csv"
     file_names = [
-        "rewards/base_angular_velocity",
-        "rewards/base_linear_velocity",
-        "rewards/gait_reward",
-        "stats/mean_reward",
-        "stats/mean_episode_length",
-        "stats/terrain_levels",
-        "terminations/non_foot_lleg_contact_termination",
-        "terminations/time_out_termination",
-        "terminations/body_contact_termination"
+        "rewards/joint_pos_default_tracking",
+        "rewards/mean_reward",
+        "terminations/termination_body_count",
+        "terminations/termination_non_foot_lleg_contact",
+        "terminations/termination_timeout"
     ]
     titles = [
-        "Base Angular Velocity",
-        "Base Linear Velocity",
-        "Gait",
+        "Joint Pos Default Tracking",
         "Total Mean Reward",
-        "Mean Episode Length",
-        "Terrain Level",
+        "Body Contact",
         "Non Foot lleg Contact",
-        "Time Out",
-        "Body Contact"
+        "Timeout"
     ]
     abreviations = [
-        "bav",
-        "blv",
-        "gait",
+        "jpdt",
         "tmr",
-        "mel",
-        "ter_lvl",
+        "bc",
         "nflc",
-        "to",
-        "bc"
+        "to"
     ]
-    x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
-    y_cols = ["Reward Value", "Reward Value", "Reward Value", "Total Reward", "Episode Length", "Curriculum Level", "Termination %", "Termination %", "Termination %"]
-    files = [f"{file_path}{f}{file_ending}" for f in file_names]
+    x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
+    y_cols = ["Reward Value", "Total Reward", "Terminations %", "Terminations %", "Terminations %"]
+    # file_names = [
+    #     "rewards/base_angular_velocity",
+    #     "rewards/base_linear_velocity",
+    #     "rewards/gait_reward",
+    #     "stats/mean_reward",
+    #     "stats/mean_episode_length",
+    #     "stats/terrain_levels",
+    #     "terminations/non_foot_lleg_contact_termination",
+    #     "terminations/time_out_termination",
+    #     "terminations/body_contact_termination"
+    # ]
+    # titles = [
+    #     "Base Angular Velocity",
+    #     "Base Linear Velocity",
+    #     "Gait",
+    #     "Total Mean Reward",
+    #     "Mean Episode Length",
+    #     "Terrain Level",
+    #     "Non Foot lleg Contact",
+    #     "Timeout",
+    #     "Body Contact"
+    # ]
+    # abreviations = [
+    #     "bav",
+    #     "blv",
+    #     "gait",
+    #     "tmr",
+    #     "mel",
+    #     "ter_lvl",
+    #     "nflc",
+    #     "to",
+    #     "bc"
+    # ]
+    # x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
+    # y_cols = ["Reward Value", "Reward Value", "Reward Value", "Total Reward", "Episode Length", "Curriculum Level", "Termination %", "Termination %", "Termination %"]
+    
 
     plot_togheter = [
         "Non Foot lleg Contact",
-        "Time Out",
+        "Timeout",
         "Body Contact"
     ]
+    files = [f"{file_path}{f}{file_ending}" for f in file_names]
     #Minimal solution to check if the lists are the same length
     if not (len(file_names) == len(titles) == len(abreviations) == len(x_cols) == len(y_cols)):
         raise ValueError(f"All input lists must have the same length. \n file_names:{len(file_names)}, titles:{len(titles)}, x_cols:{len(x_cols)}, y_cols:{len(y_cols)}")
@@ -165,12 +190,12 @@ def main():
     # Plot single data
     for data in training_data:
         if data.name not in plot_togheter:
-            fig, _ = plot_single_data(data)
+            fig, _ = plot_single_data(td=data)
             figures.append((data.abr, fig))
 
     # Combined plot
     combined_data = [data for data in training_data if data.name in plot_togheter]
-    fig, _ = plot_togheter_data(td_list=combined_data, smoothed_data="EMA Smoothing")
+    fig, _ = plot_togheter_data(td_list=combined_data)#, smoothed_data="EMA Smoothing")
     figures.append(("terminations", fig))
 
     #Save everything

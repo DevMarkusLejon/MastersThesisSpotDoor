@@ -248,8 +248,8 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
             linewidth=2,
         )
 
-    ax.set_xlabel("Timestep [-]")
-    ax.set_ylabel("Velocity [m/s]")
+    ax.set_xlabel("Timestep at 56 Hz")
+    ax.set_ylabel("Velocity magnitude [m/s] or [rad/s]")
     ax.set_title("Base linear velocity vs commanded. (Solid - Base, Dashed - Commanded)")
     ax.grid(True)
     if show_legend:

@@ -46,21 +46,20 @@ class StateHandler:
         self._context.event.set()
 
 
-def print_observations(observations: List[float]):
+def print_observations(observations: List[float], DOF: int = 19):
     """debug function to print out the observation data used as model input
 
     arguments
     observations -- list of float values ready to be passed into the model
     """
-    
     print("Joint order names:", ordered_joint_names_orbit)
     print("base_linear_velocity:", observations[0:3])
     print("base_angular_velocity:", observations[3:6])
     print("projected_gravity:", observations[6:9])
     print("commanded_vel:", observations[9:12])
-    print("joint_positions:", observations[12:31])
-    print("joint_velocity:", observations[31:50])
-    print("last_action:", observations[50:69])
+    print("joint_positions:", observations[12:12+DOF])
+    print("joint_velocity:", observations[12+DOF:12+DOF*2])
+    print("last_action:", observations[12+DOF*2:12+DOF*3])
 
 class OnnxCommandGenerator:
     """class to be used as generator for spots command stream that executes
@@ -97,6 +96,7 @@ class OnnxCommandGenerator:
             False, False, False, # hr: hx, hy, kn
             True, True, True, True, True, True, True, # arm 
         ]
+        self._USED_DOF = 19
 
     def __call__(self):
         """makes class a callable and computes model output for latest controller context
@@ -114,9 +114,8 @@ class OnnxCommandGenerator:
             print("Spot init pos in orbit order, printed in onnx __call: ", reorder(self._init_pos, spot_to_orbit)) # own print
             print("Spot init load in orbit order, printed in onnx __call: ", reorder(self._init_load, spot_to_orbit)) # own print
 
-
         # extract observation data from latest spot state data
-        input_list = self.collect_inputs(self._context.latest_state, self._config)
+        input_list = self.collect_inputs(self._context.latest_state, self._config, self._USED_DOF)
         # print("observations", input_list)
 
         # execute model from onnx file
@@ -127,17 +126,18 @@ class OnnxCommandGenerator:
         # joint order and offset
         test_scale = min(0.1 * self._count, 1)
 
-        scaled_output = list(map(mul, [self._config.action_scale] * 19, output))
-        test_scaled = list(map(mul, [test_scale] * 19, scaled_output))
+        scaled_output = list(map(mul, [self._config.action_scale] * self._USED_DOF, output))
+        test_scaled = list(map(mul, [test_scale] * self._USED_DOF, scaled_output))
 
-        default_joints = dict_to_list(self._config.default_joints, ordered_joint_names_orbit)
+        default_joints = dict_to_list(self._config.default_joints, ordered_joint_names_orbit)[:self._USED_DOF]
         shifted_output = list(map(add, test_scaled, default_joints))
-        #print("shifted output in orbit order: \n", shifted_output) # own print 
+        print("shifted output in orbit order: \n", shifted_output) # own print 
 
-        orbit_to_spot = find_ordering(ordered_joint_names_orbit, ordered_joint_names_bosdyn)
+        orbit_to_spot = find_ordering(ordered_joint_names_orbit, ordered_joint_names_bosdyn)[:self._USED_DOF]
         reordered_output = reorder(shifted_output, orbit_to_spot)
-        #print("shifted output in bosdyn order: \n", reordered_output) # own print
+        print("shifted output in bosdyn order: \n", reordered_output) # own print
         
+
         # generate proto message from target joint positions
         #proto = self.create_proto(reordered_output)
         #proto = self.create_proto_hold()
@@ -167,21 +167,27 @@ class OnnxCommandGenerator:
 
         return list of float values ready to be passed into the model
         """
+
+        joint_pos = ob.get_joint_positions(state, config)[:self._USED_DOF]
+        joint_vel = ob.get_joint_velocity(state)[:self._USED_DOF]
+        last_action = self._last_action[:self._USED_DOF] #reduntant
+
         observations = []
         observations += ob.get_base_linear_velocity(state)
         observations += ob.get_base_angular_velocity(state)
         observations += ob.get_projected_gravity(state)
         observations += self._context.velocity_cmd
-        observations += ob.get_joint_positions(state, config)
-        observations += ob.get_joint_velocity(state)
-        observations += self._last_action
+        observations += joint_pos
+        observations += joint_vel
+        observations += last_action
         
         if self._count % 50 == 0:
-            print_observations(observations)
+            print_observations(observations, self._USED_DOF)
             #print("[INFO] cmd", self._context.velocity_cmd)
         self.log_observations_txt(observations)
 
         return observations
+
 
     def log_observations_txt(self, observations):
         """save observations into txt file.
@@ -194,9 +200,9 @@ class OnnxCommandGenerator:
             f"base_angular_velocity: {observations[3:6]}",
             f"projected_gravity: {observations[6:9]}",
             f"commanded_vel: {observations[9:12]}",
-            f"joint_positions: {observations[12:31]}",
-            f"joint_velocity: {observations[31:50]}",
-            f"last_action: {observations[50:69]}",
+            f"joint_positions: {observations[12:12+self._USED_DOF]}",
+            f"joint_velocity: {observations[12+self._USED_DOF:12+self._USED_DOF*2]}",
+            f"last_action: {observations[12+self._USED_DOF*2:12+self._USED_DOF*3]}",
             f"shifted_action: {self._shifted_action}"
         ]
 
@@ -455,7 +461,7 @@ class OnnxCommandGenerator:
         load_cmd = [0] * N_DOF
         
         for joint_ind in range(N_DOF):
-            if self._hold_mask[joint_ind]:
+            if self._hold_mask[joint_ind] or joint_ind > len(pos_command)-1:
                 #if true hold at fixed pose
                 pos_cmd[joint_ind] = pos_cmd_fixed[joint_ind]
             else:
