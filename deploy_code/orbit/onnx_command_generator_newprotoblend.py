@@ -46,20 +46,25 @@ class StateHandler:
         self._context.event.set()
 
 
-def print_observations(observations: List[float], DOF: int = 19):
+def print_observations(observations: List[float], USED_DOF: int = 19):
     """debug function to print out the observation data used as model input
 
     arguments
     observations -- list of float values ready to be passed into the model
     """
+    
     print("Joint order names:", ordered_joint_names_orbit)
     print("base_linear_velocity:", observations[0:3])
     print("base_angular_velocity:", observations[3:6])
     print("projected_gravity:", observations[6:9])
     print("commanded_vel:", observations[9:12])
-    print("joint_positions:", observations[12:12+DOF])
-    print("joint_velocity:", observations[12+DOF:12+DOF*2])
-    print("last_action:", observations[12+DOF*2:12+DOF*3])
+    print("joint_positions:", observations[12:12+USED_DOF])
+    print("joint_velocity:", observations[12+USED_DOF:12+USED_DOF*2])
+    print("last_action:", observations[12+USED_DOF*2:12+USED_DOF*3])
+
+    # print("joint_positions:", observations[12:31])
+    # print("joint_velocity:", observations[31:50])
+    # print("last_action:", observations[50:69])
 
 class OnnxCommandGenerator:
     """class to be used as generator for spots command stream that executes
@@ -96,7 +101,8 @@ class OnnxCommandGenerator:
             False, False, False, # hr: hx, hy, kn
             True, True, True, True, True, True, True, # arm 
         ]
-        self._USED_DOF = 19
+        self._TOTAL_DOF = 19
+        self._USED_DOF = 12
 
     def __call__(self):
         """makes class a callable and computes model output for latest controller context
@@ -114,8 +120,9 @@ class OnnxCommandGenerator:
             print("Spot init pos in orbit order, printed in onnx __call: ", reorder(self._init_pos, spot_to_orbit)) # own print
             print("Spot init load in orbit order, printed in onnx __call: ", reorder(self._init_load, spot_to_orbit)) # own print
 
+
         # extract observation data from latest spot state data
-        input_list = self.collect_inputs(self._context.latest_state, self._config, self._USED_DOF)
+        input_list = self.collect_inputs(self._context.latest_state, self._config)
         # print("observations", input_list)
 
         # execute model from onnx file
@@ -124,7 +131,7 @@ class OnnxCommandGenerator:
        
         # post process model output apply action scaling and return to spots
         # joint order and offset
-        test_scale = min(0.1 * self._count, 1)
+        test_scale = min(0.1 * self._count, 1) #0.1 is standard value
 
         scaled_output = list(map(mul, [self._config.action_scale] * self._USED_DOF, output))
         test_scaled = list(map(mul, [test_scale] * self._USED_DOF, scaled_output))
@@ -137,17 +144,16 @@ class OnnxCommandGenerator:
         reordered_output = reorder(shifted_output, orbit_to_spot)
         print("shifted output in bosdyn order: \n", reordered_output) # own print
         
-
         # generate proto message from target joint positions
         #proto = self.create_proto(reordered_output)
         #proto = self.create_proto_hold()
         #proto = self.create_proto_blend_hold(reordered_output)
 
-
-        if self._count < 50:
-            proto = self.create_proto_fixed()
-        else:
-            proto = self.create_proto_blend_fixed(reordered_output)
+        proto = self.create_proto_blend_fixed(reordered_output)
+        # if self._count < 100:
+        #     proto = self.create_proto_fixed()
+        # else:
+        #     proto = self.create_proto_blend_fixed(reordered_output)
         
 
         # cache data for history and logging
@@ -167,27 +173,22 @@ class OnnxCommandGenerator:
 
         return list of float values ready to be passed into the model
         """
-
-        joint_pos = ob.get_joint_positions(state, config)[:self._USED_DOF]
-        joint_vel = ob.get_joint_velocity(state)[:self._USED_DOF]
-        last_action = self._last_action[:self._USED_DOF] #reduntant
-
         observations = []
         observations += ob.get_base_linear_velocity(state)
         observations += ob.get_base_angular_velocity(state)
         observations += ob.get_projected_gravity(state)
         observations += self._context.velocity_cmd
-        observations += joint_pos
-        observations += joint_vel
-        observations += last_action
+        observations += ob.get_joint_positions(state, config)[:self._USED_DOF]
+        observations += ob.get_joint_velocity(state)[:self._USED_DOF]
+        observations += self._last_action[:self._USED_DOF]
         
         if self._count % 50 == 0:
             print_observations(observations, self._USED_DOF)
+            print(f"shifted_action: {self._shifted_action[:self._USED_DOF]}")
             #print("[INFO] cmd", self._context.velocity_cmd)
         self.log_observations_txt(observations)
 
         return observations
-
 
     def log_observations_txt(self, observations):
         """save observations into txt file.
@@ -203,8 +204,11 @@ class OnnxCommandGenerator:
             f"joint_positions: {observations[12:12+self._USED_DOF]}",
             f"joint_velocity: {observations[12+self._USED_DOF:12+self._USED_DOF*2]}",
             f"last_action: {observations[12+self._USED_DOF*2:12+self._USED_DOF*3]}",
-            f"shifted_action: {self._shifted_action}"
+            f"shifted_action: {self._shifted_action[:self._USED_DOF]}"
         ]
+            #f"joint_positions: {observations[12:31]}",
+            #f"joint_velocity: {observations[31:50]}",
+            #f"last_action: {observations[50:69]}",
 
         for line in lines:
             self._log_file.write(line + "\n")
@@ -404,10 +408,10 @@ class OnnxCommandGenerator:
         N_DOF = 19
         
         pos_cmd = [
-                0.11, 0.69, -1.57,
-                -0.13, 0.76, -1.5,
-                0.13, 0.73, -1.47,
-                -0.14, 0.73, -1.46,
+                0.1, 0.9, -1.5,
+                -0.1, 0.9, -1.5,
+                0.1, 1.1, -1.5,
+                -0.1, 1.1, -1.5,
                 0, -3.14, 3.14, 1.57, 0, -1.57, 0]
         vel_cmd = [0] * N_DOF
         load_cmd = [0] * N_DOF
@@ -450,10 +454,10 @@ class OnnxCommandGenerator:
         N_DOF = 19
         
         pos_cmd_fixed = [
-                0.11, 0.69, -1.57,
-                -0.13, 0.76, -1.5,
-                0.13, 0.73, -1.47,
-                -0.14, 0.73, -1.46,
+                0.1, 0.9, -1.5,
+                -0.1, 0.9, -1.5,
+                0.1, 1.1, -1.5,
+                -0.1, 1.1, -1.5,
                 0, -3.14, 3.14, 1.57, 0, -1.57, 0]
         
         pos_cmd = [0] * N_DOF
@@ -461,7 +465,7 @@ class OnnxCommandGenerator:
         load_cmd = [0] * N_DOF
         
         for joint_ind in range(N_DOF):
-            if self._hold_mask[joint_ind] or joint_ind > len(pos_command)-1:
+            if self._hold_mask[joint_ind] or joint_ind >= len(pos_command):
                 #if true hold at fixed pose
                 pos_cmd[joint_ind] = pos_cmd_fixed[joint_ind]
             else:

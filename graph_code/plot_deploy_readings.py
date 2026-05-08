@@ -30,13 +30,6 @@ REQUIRED_KEYS = [
     "base_linear_velocity:",
     "commanded_vel:"
 ]
-EXPECTED_VECTOR_LENGHT = {
-    "joint_positions:": 19,
-    "joint_velocity:": 19,
-    "shifted_action:": 19,
-    "base_linear_velocity:": 3,
-    "commanded_vel:": 3
-}
 
 # This is in orbit order
 JOINT_LABELS = ["fl_hx", "fr_hx","hl_hx", "hr_hx", 
@@ -127,15 +120,6 @@ def validate_data(data):
             error_msg += f"  {key} {count}\n"
         raise ValueError(error_msg)
 
-    
-
-    for key, expected_len in EXPECTED_VECTOR_LENGHT.items():
-        if data[key].shape[1] != expected_len:
-            raise ValueError(
-                f"Wrong vector lenght for '{key}'\n"
-                f"  Expected: {expected_len}\n"
-                f"  Got: {data[key].shape[1]}"
-            )
 
 def print_summary(data):
     """Print loaded data."""
@@ -266,8 +250,15 @@ def plot_all_groups(data):
 
     x = np.arange(joint_pos.shape[0])
     figures = []
+
+    used_dof = joint_pos.shape[1]
+    active_joint_groups = {
+        name: joints 
+        for name, joints in JOINT_GROUPS.items() 
+        if all(JOINT_LABEL_TO_IDX[joint] < used_dof for joint in joints) 
+    }
     # Plot joint pos
-    for group_name, joint_names in JOINT_GROUPS.items():
+    for group_name, joint_names in active_joint_groups.items():
         fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
         plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
         plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
