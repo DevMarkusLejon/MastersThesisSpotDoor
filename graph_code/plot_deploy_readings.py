@@ -28,7 +28,8 @@ REQUIRED_KEYS = [
     "joint_velocity:",
     "shifted_action:",
     "base_linear_velocity:",
-    "commanded_vel:"
+    "commanded_vel:",
+    "joint_torques:",
 ]
 
 # This is in orbit order
@@ -239,6 +240,27 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     if show_legend:
         ax.legend(fontsize=8, loc="upper left")
 
+def plot_jointtorque_subplot(ax, x, joint_names, group_name, joint_torque, show_ylabel=True, show_legend=True):
+    """Plot joint torque groupwise on ax."""
+    for joint in joint_names:
+        idx = JOINT_LABEL_TO_IDX[joint]
+        color = JOINT_COLOR_MAP[joint]
+
+        ax.plot(
+            x,
+            joint_torque[:, idx],
+            color=color,
+            linestyle="-",
+            linewidth=2,
+            label=joint
+        )
+
+    if show_ylabel:
+        ax.set_ylabel("Joint torque [Nm]")
+    if show_legend:
+        ax.legend(fontsize=8, ncol=1, loc="upper left")
+    ax.set_title(f"{group_name} joint torques.")#, Dotted - Default)")
+    ax.grid(True)
 
 def plot_all_groups(data):
     """Create all group plots."""
@@ -247,6 +269,7 @@ def plot_all_groups(data):
     shifted_action = data["shifted_action:"]
     base_vel = data["base_linear_velocity:"]
     cmd_vel = data["commanded_vel:"]
+    joint_torques = data["joint_torques:"]
     x = np.arange(joint_pos.shape[0])
     figures = []
 
@@ -257,12 +280,12 @@ def plot_all_groups(data):
         if all(JOINT_LABEL_TO_IDX[joint] < used_dof for joint in joints) 
     }
     # Plot joint pos
-    for group_name, joint_names in active_joint_groups.items():
-        fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
-        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
-        plt.tight_layout()
-        figures.append((f"{group_name}_joint_pos", fig))
+    # for group_name, joint_names in active_joint_groups.items():
+    #     fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
+    #     plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
+    #     plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
+    #     plt.tight_layout()
+    #     figures.append((f"{group_name}_joint_pos", fig))
 
     # Plot joint vels
     # for group_name, joint_names in JOINT_GROUPS.items():
@@ -272,6 +295,15 @@ def plot_all_groups(data):
     #     plt.tight_layout()
     #     figures.append((f"{group_name}_joint_vel", fig))
     
+    # Plot joint torques with pose and cmd vels
+    for group_name, joint_names in active_joint_groups.items():
+        fig, (jointpos_ax, base_vel_ax, joint_torques_ax) = plt.subplots(3, 1, figsize=(12,8), sharex=True, gridspec_kw={'height_ratios': [2,1,1]})
+        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
+        plot_basevel_subplot(base_vel_ax, x, base_vel, cmd_vel)
+        plot_jointtorque_subplot(joint_torques_ax, x, joint_names, group_name, joint_torques)
+        plt.tight_layout()
+        figures.append((f"{group_name}_joint_torque", fig))
+
     # Plot togheter
     fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"], ["VEL", "VEL"]], figsize=(12,8), sharex=True) 
     for group_name in ["FL", "FR", "HL",  "HR"]:
@@ -326,7 +358,7 @@ def main():
 
     #jp = np.array(extract_single_count_for_key(data, key="joint_positions:", idx=3000))
     #sa = np.array(extract_single_count_for_key(data, key="shifted_action:", idx=3000))
-    print_jp_sa_values(data, 1000)
+    #print_jp_sa_values(data, 1000)
     figures = plot_all_groups(data)
 
     flag = input("Do you want to save the plots? (y/n): ")
