@@ -103,6 +103,14 @@ class OnnxCommandGenerator:
         ]
         self._TOTAL_DOF = 19
         self._USED_DOF = 12
+        
+        policy_input_len = self._inference_session.get_inputs()[0].shape[-1] #len of first input list for the policy
+        policy_input_dof = 12 if policy_input_len == 48 else 19 if policy_input_len == 69 else None
+        print(f"Policy len: {policy_input_len}. Policy DOF: {policy_input_dof}.")
+        print(f"Full DOF: {self._TOTAL_DOF}. Used DOF: {self._USED_DOF}.")
+        print(f"USED_DOF and Policy DOF  "
+              f"{'MATCH, GO AHEAD AND RUN!' if self._USED_DOF == policy_input_dof else 'DO NOT MATCH, FIX BEFORE RUNNING!'}")
+
 
     def __call__(self):
         """makes class a callable and computes model output for latest controller context

@@ -165,14 +165,14 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
         #     linestyle=":",
         #     linewidth=2,
         # )
-        # ax.hlines(
-        #     y=[UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
-        #     xmin=0,
-        #     xmax=max(x),
-        #     color=color,
-        #     linestyle="-.",
-        #     linewidth=2,
-        # )
+        ax.hlines(
+            y=[UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
+            xmin=0,
+            xmax=max(x),
+            color=color,
+            linestyle="-.",
+            linewidth=2,
+        )
     if show_ylabel:
         ax.set_ylabel("Joint angle [rad]")
     if show_legend:
@@ -247,7 +247,6 @@ def plot_all_groups(data):
     shifted_action = data["shifted_action:"]
     base_vel = data["base_linear_velocity:"]
     cmd_vel = data["commanded_vel:"]
-
     x = np.arange(joint_pos.shape[0])
     figures = []
 
@@ -294,18 +293,40 @@ def figure_saver(figures: list[tuple[str, plt.Figure]], save_path: str, save_dir
     for name, fig in figures:
         filename = f"{name}{save_ending}"
         fig.savefig(path / filename, dpi=dpi, bbox_inches="tight")
+def extract_single_count_for_key(data, key: str = "shifted_action:", idx: int = 0):
+    key_data = data[key]
+    val = []
+    if key == "joint_positions:":
+        val = key_data[idx][:] + DEFAULT_JOINT_POSITION[:len(key_data[idx])]
+    else:
+        val = [key_data[idx]]
+    return val
+def print_jp_sa_values(data, index):
+    jp_data = data["joint_positions:"]
+    sa_data = data["shifted_action:"]
+
+    jp_value = np.array(jp_data[index][:]+DEFAULT_JOINT_POSITION[:len(jp_data[index])])
+    sa_value = np.array(sa_data[index])
+
+    print(f"Joint position for idx {index} is:\n {jp_value} rads and:\n {np.degrees(jp_value)} degs")
+    print(f"Shifted action for idx {index} is:\n {sa_value} rads and:\n {np.degrees(sa_value)} degs")
+    print(f"Delta (SA-JP) for idx {index} is:\n {sa_value-jp_value} rads and:\n {np.degrees(sa_value)-np.degrees(jp_value)} degs")
 
 
 # ----- MAIN -----
 def main():
     # Add filepath to file in logs directly?
-    filename = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/spot_joint_values.txt"
-    save_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/plots_deployment/"
+    filename = "/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
+    save_path = "/home/sundt/thesis//my_spot_thesis/graph_code/plots_deployment/"
     save_ending = "_deployment_plot.png"
     
     data = load_data(filename)
     validate_data(data)
     print_summary(data)
+
+    #jp = np.array(extract_single_count_for_key(data, key="joint_positions:", idx=3000))
+    #sa = np.array(extract_single_count_for_key(data, key="shifted_action:", idx=3000))
+    print_jp_sa_values(data, 1000)
     figures = plot_all_groups(data)
 
     flag = input("Do you want to save the plots? (y/n): ")
