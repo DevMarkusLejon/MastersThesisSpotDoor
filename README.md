@@ -88,10 +88,11 @@ The manual covers the installation of Isaac Sim and Isaac Lab using Docker conta
 
 The manual also includes installation notes for the Spot RL Researcher Kit and an overview of the changes made to the deployment code based on the Boston Dynamics Spot RL example repository.
 
-## Popular science summary
+## Thesis documents
 
-A Swedish popular science summary of the thesis is available in `docs/`.
+The full thesis report and a Swedish popular science summary are available in `docs/`.
 
+- [Full MSc thesis report (PDF)](docs/Spot_RL_Thesis.pdf)
 - [Konsten att lära hunden från grunden (PDF)](docs/Spot_RL_popsammanfattning.pdf)
 
 ## Repository structure
